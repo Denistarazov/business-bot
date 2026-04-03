@@ -30,7 +30,9 @@ async def main():
     await init_db()
     set_bot(bot)
     setup_scheduler(bot)
+    print("=" * 50)
     print("🚀 Starting bot + web server...")
+    print("=" * 50)
 
     # Start web server in a separate thread (it blocks)
     web_thread = threading.Thread(target=run_web_sync, daemon=True)
