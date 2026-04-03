@@ -1,6 +1,5 @@
 import asyncio
 import os
-import threading
 import uvicorn
 from dotenv import load_dotenv
 
@@ -14,35 +13,51 @@ from web.server import app, set_bot
 
 async def run_bot():
     """Run the Telegram bot polling."""
-    print("🤖 Bot is running...")
-    await dp.start_polling(bot)
+    try:
+        print("🤖 Bot starting...")
+        await dp.start_polling(bot)
+    except Exception as e:
+        print(f"❌ Bot error: {e}")
+        raise
 
 
-def run_web_sync():
-    """Run uvicorn in a sync context."""
-    port = int(os.getenv("PORT", 8080))
-    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
+async def run_web():
+    """Run the FastAPI web server."""
+    try:
+        port = int(os.getenv("PORT", 8080))
+        print(f"🌐 Web server starting on port {port}...")
+        config = uvicorn.Config(app, host="0.0.0.0", port=port, log_level="info")
+        server = uvicorn.Server(config)
+        await server.serve()
+    except Exception as e:
+        print(f"❌ Web server error: {e}")
+        raise
 
 
 async def main():
     """Initialize database and start both bot and web server."""
+    print("=" * 60)
+    print("🚀 Initializing database...")
     await database.connect()
     await init_db()
     set_bot(bot)
     setup_scheduler(bot)
-    print("=" * 50)
-    print("🚀 Starting bot + web server...")
-    print("=" * 50)
+    print("✅ Database initialized")
+    print("=" * 60)
 
-    # Start web server in a separate thread (it blocks)
-    web_thread = threading.Thread(target=run_web_sync, daemon=True)
-    web_thread.start()
+    # Create tasks for both bot and web server
+    bot_task = asyncio.create_task(run_bot())
+    web_task = asyncio.create_task(run_web())
 
-    # Give web server time to start
-    await asyncio.sleep(1)
+    print("🎯 Both services starting...")
 
-    # Run bot in main event loop
-    await run_bot()
+    # Wait for either task to complete (usually web server runs indefinitely)
+    try:
+        await asyncio.gather(bot_task, web_task)
+    except KeyboardInterrupt:
+        print("\n⏹️  Shutting down...")
+        bot_task.cancel()
+        web_task.cancel()
 
 
 if __name__ == "__main__":
