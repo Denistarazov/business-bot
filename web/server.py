@@ -1,27 +1,30 @@
-import os
+import asyncio
 import datetime
+import hashlib
+import hmac
+import os
+import re
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Depends
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from pydantic import BaseModel
 import jwt
+from fastapi import Depends, FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from pydantic import BaseModel
 
 from database.db import (
-    get_all_bookings, init_db,
-    get_admin_by_username, add_admin, get_all_admins, delete_admin,
-    update_booking, get_booking_user_id,
-    verify_password
+    add_admin, delete_admin, get_admin_by_telegram_id, get_admin_by_username,
+    get_all_admins, get_all_bookings, get_all_user_ids, get_booking_user_id,
+    get_stats_by_day, get_stats_by_service, get_users_count,
+    init_db, link_telegram_id, update_booking, verify_password, database,
 )
 
-# ─── Config ───────────────────────────────────────────────────────────────────
+# ── Config ────────────────────────────────────────────────────────────────────
+SECRET_KEY   = os.getenv("SECRET_KEY",   "change-this-secret-in-production")
+BOT_TOKEN    = os.getenv("BOT_TOKEN",    "")
+BOT_USERNAME = os.getenv("BOT_USERNAME", "")
+ALGORITHM    = "HS256"
 
-SECRET_KEY = os.getenv("SECRET_KEY", "change-this-secret-in-production-please")
-ALGORITHM = "HS256"
-TOKEN_EXPIRE_HOURS = 24
-
-# Global bot instance (set from main.py)
 _bot = None
 
 
@@ -30,9 +33,8 @@ def set_bot(bot):
     _bot = bot
 
 
-# ─── App ──────────────────────────────────────────────────────────────────────
-
-app = FastAPI(title="Business Bot API", version="2.0.0")
+# ── App ───────────────────────────────────────────────────────────────────────
+app = FastAPI(title="Business Bot API", version="3.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -44,35 +46,31 @@ app.add_middleware(
 security = HTTPBearer()
 
 
-# ─── Auth helpers ─────────────────────────────────────────────────────────────
-
+# ── Auth helpers ──────────────────────────────────────────────────────────────
 def create_token(username: str, role: str) -> str:
-    payload = {
-        "sub": username,
-        "role": role,
-        "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=TOKEN_EXPIRE_HOURS)
-    }
-    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+    return jwt.encode(
+        {"sub": username, "role": role,
+         "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=24)},
+        SECRET_KEY, algorithm=ALGORITHM,
+    )
 
 
-def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
+def verify_token(creds: HTTPAuthorizationCredentials = Depends(security)):
     try:
-        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
-        return payload
+        return jwt.decode(creds.credentials, SECRET_KEY, algorithms=[ALGORITHM])
     except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token expired, please login again")
+        raise HTTPException(401, "Token expired")
     except jwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+        raise HTTPException(401, "Invalid token")
 
 
 def require_superadmin(payload=Depends(verify_token)):
     if payload.get("role") != "superadmin":
-        raise HTTPException(status_code=403, detail="Superadmin access required")
+        raise HTTPException(403, "Superadmin access required")
     return payload
 
 
-# ─── Request models ───────────────────────────────────────────────────────────
-
+# ── Pydantic models ───────────────────────────────────────────────────────────
 class LoginRequest(BaseModel):
     username: str
     password: str
@@ -90,108 +88,206 @@ class AddAdminRequest(BaseModel):
     role: str = "admin"
 
 
-# ─── Startup ──────────────────────────────────────────────────────────────────
+class BroadcastRequest(BaseModel):
+    message: str
 
+
+class TelegramAuthRequest(BaseModel):
+    id: int
+    first_name: Optional[str] = None
+    username: Optional[str] = None
+    photo_url: Optional[str] = None
+    auth_date: int
+    hash: str
+
+
+# ── Startup / shutdown ────────────────────────────────────────────────────────
 @app.on_event("startup")
 async def startup():
+    await database.connect()
     await init_db()
 
 
-# ─── Public endpoints ─────────────────────────────────────────────────────────
+@app.on_event("shutdown")
+async def shutdown():
+    await database.disconnect()
 
+
+# ── Public ────────────────────────────────────────────────────────────────────
 @app.get("/")
 async def root():
-    return {"status": "ok", "message": "Business Bot API is running", "version": "2.0.0"}
+    return {"status": "ok", "version": "3.0.0"}
+
+
+@app.get("/config")
+async def config():
+    return {"bot_username": BOT_USERNAME}
 
 
 @app.post("/login")
-async def login(request: LoginRequest):
-    admin = await get_admin_by_username(request.username)
-    if not admin or not verify_password(request.password, admin[2]):
-        raise HTTPException(status_code=401, detail="Invalid username or password")
-    token = create_token(admin[1], admin[3])
-    return {
-        "token": token,
-        "username": admin[1],
-        "role": admin[3]
-    }
+async def login(req: LoginRequest):
+    admin = await get_admin_by_username(req.username)
+    if not admin or not verify_password(req.password, admin["password_hash"]):
+        raise HTTPException(401, "Invalid username or password")
+    token = create_token(admin["username"], admin["role"])
+    return {"token": token, "username": admin["username"], "role": admin["role"]}
 
 
-# ─── Protected: Bookings ──────────────────────────────────────────────────────
+@app.post("/auth/telegram")
+async def telegram_auth(req: TelegramAuthRequest):
+    """Verify Telegram Login Widget data and issue JWT."""
+    if not BOT_TOKEN:
+        raise HTTPException(503, "Telegram auth not configured")
 
+    # Verify hash
+    data = {k: v for k, v in req.dict().items() if k != "hash" and v is not None}
+    check_string = "\n".join(f"{k}={data[k]}" for k in sorted(data))
+    secret = hashlib.sha256(BOT_TOKEN.encode()).digest()
+    expected = hmac.new(secret, check_string.encode(), hashlib.sha256).hexdigest()
+
+    if not hmac.compare_digest(expected, req.hash):
+        raise HTTPException(401, "Invalid Telegram auth data")
+
+    # Check expiry (1 day)
+    if datetime.datetime.utcnow().timestamp() - req.auth_date > 86400:
+        raise HTTPException(401, "Auth data expired")
+
+    admin = await get_admin_by_telegram_id(req.id)
+    if not admin:
+        raise HTTPException(403, "This Telegram account is not linked to any admin")
+
+    token = create_token(admin["username"], admin["role"])
+    return {"token": token, "username": admin["username"], "role": admin["role"]}
+
+
+# ── Bookings ──────────────────────────────────────────────────────────────────
 @app.get("/bookings")
 async def get_bookings(payload=Depends(verify_token)):
-    data = await get_all_bookings()
+    rows = await get_all_bookings()
     return [
         {
-            "id": b[0],
-            "name": b[1],
-            "username": b[2],
-            "service": b[3],
-            "phone": b[4],
-            "status": b[5],
-            "scheduled_date": b[6],
-            "notes": b[7],
-            "created_at": b[8],
+            "id":             r["id"],
+            "name":           r["first_name"],
+            "username":       r["username"],
+            "service":        r["service"],
+            "phone":          r["phone"],
+            "status":         r["status"],
+            "booking_date":   r["booking_date"],
+            "booking_time":   r["booking_time"],
+            "scheduled_date": r["scheduled_date"],
+            "notes":          r["notes"],
+            "created_at":     str(r["created_at"]),
         }
-        for b in data
+        for r in rows
     ]
 
 
 @app.put("/bookings/{booking_id}")
 async def update_booking_endpoint(
     booking_id: int,
-    request: UpdateBookingRequest,
-    payload=Depends(verify_token)
+    req: UpdateBookingRequest,
+    payload=Depends(verify_token),
 ):
-    await update_booking(booking_id, request.status, request.scheduled_date, request.notes)
+    await update_booking(booking_id, req.status, req.scheduled_date, req.notes)
 
-    # Notify user via Telegram bot
+    # Notify user via bot
     if _bot:
-        user_id = await get_booking_user_id(booking_id)
-        if user_id:
+        uid = await get_booking_user_id(booking_id)
+        if uid:
             try:
-                status_messages = {
-                    "done": "✅ Your booking has been *completed*! Thank you for visiting us. We look forward to seeing you again! 💈",
-                    "cancelled": "❌ Your booking has been *cancelled*.\nPlease contact us if you have any questions.\n📞 +1 234 567 89",
-                    "rescheduled": f"📅 Your booking has been *rescheduled*.\nNew date: *{request.scheduled_date or 'TBD'}*\nWe will confirm the details shortly.",
-                    "pending": "🟡 Your booking is now *pending* review. We will contact you soon!",
+                msgs = {
+                    "done":        "✅ Your booking has been *completed*! Thank you for visiting us. 💈",
+                    "cancelled":   "❌ Your booking has been *cancelled*.\n📞 Call us: +1 234 567 89",
+                    "rescheduled": f"📅 Your booking has been *rescheduled* to: *{req.scheduled_date or 'TBD'}*",
+                    "pending":     "🟡 Your booking is *pending* review. We'll contact you soon!",
                 }
-                msg = status_messages.get(
-                    request.status,
-                    f"📋 Your booking status has been updated to: *{request.status}*"
-                )
-                if request.notes:
-                    msg += f"\n\n📝 *Note from admin:* {request.notes}"
-
-                await _bot.send_message(user_id, msg, parse_mode="Markdown")
+                msg = msgs.get(req.status, f"📋 Booking status updated: *{req.status}*")
+                if req.notes:
+                    msg += f"\n\n📝 *Note:* {req.notes}"
+                await _bot.send_message(uid, msg, parse_mode="Markdown")
             except Exception as e:
-                print(f"Failed to notify user {user_id}: {e}")
+                print(f"Notification failed for {uid}: {e}")
 
     return {"success": True}
 
 
-# ─── Protected: Admins (superadmin only) ──────────────────────────────────────
+# ── Statistics ────────────────────────────────────────────────────────────────
+@app.get("/stats")
+async def get_stats(payload=Depends(verify_token)):
+    by_day     = await get_stats_by_day(30)
+    by_service = await get_stats_by_service()
+    users_count = await get_users_count()
 
+    # Revenue: extract $ price from service name
+    def extract_price(service: str) -> float:
+        m = re.search(r"\$(\d+)", service)
+        return float(m.group(1)) if m else 0
+
+    all_bookings = await get_all_bookings()
+    total_revenue = sum(extract_price(b["service"]) for b in all_bookings)
+    done_revenue  = sum(extract_price(b["service"]) for b in all_bookings if b["status"] == "done")
+
+    return {
+        "by_day":        [{"day": str(r["day"]), "count": r["count"]} for r in by_day],
+        "by_service":    [{"service": r["service"], "count": r["count"]} for r in by_service],
+        "users_count":   users_count,
+        "total_revenue": total_revenue,
+        "done_revenue":  done_revenue,
+    }
+
+
+# ── Broadcast ─────────────────────────────────────────────────────────────────
+@app.post("/broadcast")
+async def broadcast(req: BroadcastRequest, payload=Depends(verify_token)):
+    if not _bot:
+        raise HTTPException(503, "Bot not available")
+
+    user_ids = await get_all_user_ids()
+    sent = failed = 0
+
+    for uid in user_ids:
+        try:
+            await _bot.send_message(uid, req.message, parse_mode="Markdown")
+            sent += 1
+            await asyncio.sleep(0.05)  # Telegram rate limit
+        except Exception:
+            failed += 1
+
+    return {"sent": sent, "failed": failed, "total": len(user_ids)}
+
+
+# ── Admins ────────────────────────────────────────────────────────────────────
 @app.get("/admins")
 async def list_admins(payload=Depends(require_superadmin)):
-    data = await get_all_admins()
+    rows = await get_all_admins()
     return [
-        {"id": a[0], "username": a[1], "role": a[2], "created_at": a[3]}
-        for a in data
+        {"id": r["id"], "username": r["username"], "role": r["role"],
+         "telegram_id": r["telegram_id"], "created_at": str(r["created_at"])}
+        for r in rows
     ]
 
 
 @app.post("/admins")
-async def create_admin(request: AddAdminRequest, payload=Depends(require_superadmin)):
+async def create_admin(req: AddAdminRequest, payload=Depends(require_superadmin)):
     try:
-        await add_admin(request.username, request.password, request.role)
+        await add_admin(req.username, req.password, req.role)
         return {"success": True}
     except Exception:
-        raise HTTPException(status_code=400, detail="Username already exists")
+        raise HTTPException(400, "Username already exists")
 
 
 @app.delete("/admins/{admin_id}")
 async def remove_admin(admin_id: int, payload=Depends(require_superadmin)):
     await delete_admin(admin_id)
+    return {"success": True}
+
+
+@app.post("/admins/{admin_id}/link-telegram")
+async def link_admin_telegram(
+    admin_id: int,
+    req: TelegramAuthRequest,
+    payload=Depends(require_superadmin),
+):
+    """Link a Telegram account to an admin."""
+    await link_telegram_id(admin_id, req.id)
     return {"success": True}

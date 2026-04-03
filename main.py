@@ -5,13 +5,14 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+from database.db import database, init_db
 from bot.main import dp, bot
-from database.db import init_db
+from bot.scheduler import setup_scheduler
 from web.server import app, set_bot
 
 
 async def run_bot():
-    print("Bot is running...")
+    print("🤖 Bot is running...")
     await dp.start_polling(bot)
 
 
@@ -23,8 +24,11 @@ async def run_web():
 
 
 async def main():
+    await database.connect()
     await init_db()
-    set_bot(bot)  # Give web server access to bot for notifications
+    set_bot(bot)
+    setup_scheduler(bot)
+    print("🚀 Starting bot + web server...")
     await asyncio.gather(run_bot(), run_web())
 
 

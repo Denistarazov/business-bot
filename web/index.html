@@ -1,883 +1,645 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Business Bot — Admin Panel</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        body {
-            font-family: 'Segoe UI', sans-serif;
-            background: #f0f2f5;
-            color: #333;
-            min-height: 100vh;
-        }
-
-        /* ── Login Page ── */
-        #login-page {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-        }
-
-        .login-card {
-            background: white;
-            border-radius: 16px;
-            padding: 40px;
-            width: 380px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-        }
-
-        .login-card .logo {
-            text-align: center;
-            font-size: 48px;
-            margin-bottom: 8px;
-        }
-
-        .login-card h1 {
-            text-align: center;
-            font-size: 22px;
-            color: #1a1a2e;
-            margin-bottom: 4px;
-        }
-
-        .login-card .subtitle {
-            text-align: center;
-            color: #888;
-            font-size: 13px;
-            margin-bottom: 28px;
-        }
-
-        .form-group {
-            margin-bottom: 16px;
-        }
-
-        .form-group label {
-            display: block;
-            font-size: 13px;
-            font-weight: 600;
-            color: #555;
-            margin-bottom: 6px;
-        }
-
-        .form-group input, .form-group select, .form-group textarea {
-            width: 100%;
-            padding: 10px 14px;
-            border: 1.5px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 14px;
-            transition: border-color 0.2s;
-            font-family: inherit;
-        }
-
-        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
-            outline: none;
-            border-color: #0f3460;
-        }
-
-        .btn {
-            display: inline-block;
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            border: none;
-            transition: all 0.2s;
-        }
-
-        .btn-primary {
-            background: #0f3460;
-            color: white;
-            width: 100%;
-            padding: 12px;
-        }
-
-        .btn-primary:hover { background: #1a4a7a; }
-
-        .btn-danger {
-            background: #dc3545;
-            color: white;
-        }
-
-        .btn-danger:hover { background: #c82333; }
-
-        .btn-sm { padding: 6px 14px; font-size: 12px; }
-
-        .error-msg {
-            color: #dc3545;
-            font-size: 13px;
-            text-align: center;
-            margin-top: 12px;
-            display: none;
-        }
-
-        /* ── Dashboard ── */
-        #dashboard { display: none; }
-
-        header {
-            background: #1a1a2e;
-            color: white;
-            padding: 0 32px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            height: 60px;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
-
-        header .brand { font-size: 18px; font-weight: 700; }
-        header .brand span { color: #e94560; }
-
-        header .header-right {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            font-size: 13px;
-        }
-
-        header .admin-name { color: #aaa; }
-
-        .btn-logout {
-            background: rgba(255,255,255,0.1);
-            color: white;
-            border: 1px solid rgba(255,255,255,0.2);
-            padding: 6px 14px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 13px;
-        }
-
-        .btn-logout:hover { background: rgba(255,255,255,0.2); }
-
-        /* ── Stats ── */
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 16px;
-            padding: 24px 32px 0;
-        }
-
-        .stat-card {
-            background: white;
-            border-radius: 12px;
-            padding: 20px 24px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-        }
-
-        .stat-card .label {
-            font-size: 12px;
-            color: #888;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 8px;
-        }
-
-        .stat-card .value {
-            font-size: 30px;
-            font-weight: 700;
-            color: #1a1a2e;
-        }
-
-        .stat-card.yellow .value { color: #f59e0b; }
-        .stat-card.green .value  { color: #10b981; }
-        .stat-card.red .value    { color: #ef4444; }
-        .stat-card.blue .value   { color: #3b82f6; }
-
-        /* ── Tabs ── */
-        .tabs {
-            display: flex;
-            gap: 4px;
-            padding: 24px 32px 0;
-        }
-
-        .tab {
-            padding: 8px 20px;
-            border-radius: 8px 8px 0 0;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 600;
-            color: #888;
-            background: white;
-            border: 1.5px solid #e0e0e0;
-            border-bottom: none;
-        }
-
-        .tab.active { color: #1a1a2e; border-color: #1a1a2e; background: white; }
-
-        /* ── Content ── */
-        .content {
-            padding: 0 32px 32px;
-        }
-
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-
-        /* ── Table ── */
-        .table-wrapper {
-            background: white;
-            border-radius: 0 12px 12px 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-            overflow: hidden;
-            border: 1.5px solid #e0e0e0;
-            border-top: none;
-        }
-
-        .table-header {
-            padding: 16px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid #f0f0f0;
-        }
-
-        .table-header h2 { font-size: 15px; color: #1a1a2e; }
-
-        .search-input {
-            padding: 7px 12px;
-            border: 1.5px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 13px;
-            width: 220px;
-        }
-
-        .search-input:focus { outline: none; border-color: #0f3460; }
-
-        table { width: 100%; border-collapse: collapse; }
-
-        th {
-            background: #f8f9fa;
-            padding: 12px 16px;
-            text-align: left;
-            font-size: 12px;
-            font-weight: 600;
-            color: #888;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            border-bottom: 1px solid #f0f0f0;
-        }
-
-        td {
-            padding: 12px 16px;
-            font-size: 13px;
-            border-bottom: 1px solid #f8f9fa;
-        }
-
-        tr:last-child td { border-bottom: none; }
-        tr:hover td { background: #f8f9fa; }
-
-        /* ── Status badges ── */
-        .badge {
-            display: inline-block;
-            padding: 3px 10px;
-            border-radius: 20px;
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
-        }
-
-        .badge-pending      { background: #fef3c7; color: #d97706; }
-        .badge-done         { background: #d1fae5; color: #059669; }
-        .badge-cancelled    { background: #fee2e2; color: #dc2626; }
-        .badge-rescheduled  { background: #dbeafe; color: #2563eb; }
-
-        /* ── Action buttons ── */
-        .btn-edit {
-            background: #e0e7ff;
-            color: #3730a3;
-            border: none;
-            padding: 5px 12px;
-            border-radius: 6px;
-            font-size: 12px;
-            cursor: pointer;
-            font-weight: 600;
-        }
-
-        .btn-edit:hover { background: #c7d2fe; }
-
-        /* ── Modal ── */
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.5);
-            z-index: 1000;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .modal-overlay.open { display: flex; }
-
-        .modal {
-            background: white;
-            border-radius: 16px;
-            padding: 28px;
-            width: 460px;
-            max-width: 95vw;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-        }
-
-        .modal h3 {
-            font-size: 18px;
-            margin-bottom: 20px;
-            color: #1a1a2e;
-        }
-
-        .modal-info {
-            background: #f8f9fa;
-            border-radius: 8px;
-            padding: 12px 16px;
-            margin-bottom: 20px;
-            font-size: 13px;
-            line-height: 1.8;
-            color: #555;
-        }
-
-        .modal-footer {
-            display: flex;
-            gap: 10px;
-            justify-content: flex-end;
-            margin-top: 20px;
-        }
-
-        .btn-secondary {
-            background: #f0f0f0;
-            color: #555;
-            border: none;
-        }
-
-        .btn-secondary:hover { background: #e0e0e0; }
-
-        /* ── Admins tab ── */
-        .admins-grid {
-            display: grid;
-            grid-template-columns: 1fr 340px;
-            gap: 20px;
-            padding-top: 0;
-        }
-
-        .admin-card {
-            background: white;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-            border: 1.5px solid #e0e0e0;
-            border-top: none;
-        }
-
-        .add-admin-card {
-            background: white;
-            border-radius: 0 12px 12px 12px;
-            padding: 24px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-            border: 1.5px solid #e0e0e0;
-            border-top: none;
-            height: fit-content;
-        }
-
-        .add-admin-card h3 { font-size: 15px; margin-bottom: 16px; color: #1a1a2e; }
-
-        .admin-row {
-            display: flex;
-            align-items: center;
-            padding: 12px 16px;
-            border-bottom: 1px solid #f8f9fa;
-            font-size: 13px;
-        }
-
-        .admin-row:last-child { border-bottom: none; }
-
-        .admin-name { font-weight: 600; flex: 1; }
-        .admin-role {
-            font-size: 11px;
-            padding: 2px 8px;
-            border-radius: 12px;
-            margin-right: 12px;
-        }
-
-        .role-superadmin { background: #fef3c7; color: #d97706; }
-        .role-admin      { background: #dbeafe; color: #2563eb; }
-
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: #aaa;
-            font-size: 14px;
-        }
-
-        .datetime { font-size: 12px; color: #aaa; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Elite Barbershop — Admin Panel</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',sans-serif;background:#f0f2f5;color:#333;min-height:100vh}
+
+/* ── Login ── */
+#login-page{display:flex;align-items:center;justify-content:center;min-height:100vh;
+  background:linear-gradient(135deg,#1a1a2e,#16213e,#0f3460)}
+.login-card{background:#fff;border-radius:20px;padding:44px;width:400px;
+  box-shadow:0 24px 64px rgba(0,0,0,.35)}
+.login-logo{text-align:center;font-size:52px;margin-bottom:8px}
+.login-title{text-align:center;font-size:22px;font-weight:700;color:#1a1a2e;margin-bottom:4px}
+.login-sub{text-align:center;color:#999;font-size:13px;margin-bottom:28px}
+.divider{text-align:center;color:#ccc;font-size:12px;margin:16px 0;position:relative}
+.divider::before,.divider::after{content:'';position:absolute;top:50%;width:42%;height:1px;background:#eee}
+.divider::before{left:0}.divider::after{right:0}
+#tg-widget-wrap{display:flex;justify-content:center;margin-bottom:4px;min-height:40px}
+
+/* ── Forms ── */
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:12px;font-weight:600;color:#666;margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:10px 14px;
+  border:1.5px solid #e5e5e5;border-radius:9px;font-size:14px;font-family:inherit;
+  transition:border-color .2s}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:#0f3460}
+.form-group textarea{resize:vertical}
+
+.btn{display:inline-block;padding:10px 20px;border-radius:9px;font-size:14px;
+  font-weight:600;cursor:pointer;border:none;transition:all .2s;font-family:inherit}
+.btn-primary{background:#0f3460;color:#fff;width:100%;padding:13px}
+.btn-primary:hover{background:#1a4a7a}
+.btn-danger{background:#dc3545;color:#fff}
+.btn-danger:hover{background:#c82333}
+.btn-ghost{background:#f0f0f0;color:#555}
+.btn-ghost:hover{background:#e0e0e0}
+.btn-sm{padding:5px 13px;font-size:12px}
+.error-msg{color:#dc3545;font-size:13px;text-align:center;margin-top:10px;display:none}
+
+/* ── Dashboard ── */
+#dashboard{display:none}
+header{background:#1a1a2e;color:#fff;padding:0 32px;display:flex;align-items:center;
+  justify-content:space-between;height:60px;position:sticky;top:0;z-index:100}
+.brand{font-size:18px;font-weight:700}.brand span{color:#e94560}
+.header-right{display:flex;align-items:center;gap:14px;font-size:13px}
+.admin-badge{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);
+  padding:4px 12px;border-radius:20px;font-size:12px}
+.btn-logout{background:transparent;color:#aaa;border:1px solid #444;padding:5px 13px;
+  border-radius:7px;cursor:pointer;font-size:12px}
+.btn-logout:hover{color:#fff;border-color:#888}
+
+/* ── Stats row ── */
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;padding:24px 32px 0}
+.stat-card{background:#fff;border-radius:12px;padding:18px 20px;
+  box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.stat-card .label{font-size:11px;color:#999;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.stat-card .val{font-size:28px;font-weight:700;color:#1a1a2e}
+.stat-card.c-blue .val{color:#3b82f6}.stat-card.c-yellow .val{color:#f59e0b}
+.stat-card.c-green .val{color:#10b981}.stat-card.c-red .val{color:#ef4444}
+.stat-card.c-purple .val{color:#8b5cf6}
+
+/* ── Tabs ── */
+.tabs{display:flex;gap:3px;padding:24px 32px 0}
+.tab{padding:8px 20px;border-radius:8px 8px 0 0;cursor:pointer;font-size:13px;
+  font-weight:600;color:#888;background:#fff;border:1.5px solid #e0e0e0;border-bottom:none}
+.tab.active{color:#1a1a2e;border-color:#1a1a2e}
+
+/* ── Content ── */
+.content{padding:0 32px 40px}
+.tab-pane{display:none}.tab-pane.active{display:block}
+.card{background:#fff;border-radius:0 12px 12px 12px;box-shadow:0 2px 8px rgba(0,0,0,.06);
+  overflow:hidden;border:1.5px solid #e0e0e0;border-top:none}
+.card-header{padding:16px 20px;display:flex;justify-content:space-between;align-items:center;
+  border-bottom:1px solid #f5f5f5}
+.card-header h2{font-size:15px;color:#1a1a2e}
+
+/* ── Table ── */
+table{width:100%;border-collapse:collapse}
+th{background:#f8f9fa;padding:11px 16px;text-align:left;font-size:11px;
+  font-weight:700;color:#999;text-transform:uppercase;letter-spacing:.4px;
+  border-bottom:1px solid #f0f0f0}
+td{padding:11px 16px;font-size:13px;border-bottom:1px solid #fafafa}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafafa}
+
+/* ── Badges ── */
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;text-transform:uppercase}
+.badge-pending{background:#fef3c7;color:#d97706}
+.badge-done{background:#d1fae5;color:#059669}
+.badge-cancelled{background:#fee2e2;color:#dc2626}
+.badge-rescheduled{background:#dbeafe;color:#2563eb}
+
+.btn-edit{background:#e0e7ff;color:#3730a3;border:none;padding:4px 11px;
+  border-radius:6px;font-size:12px;cursor:pointer;font-weight:600}
+.btn-edit:hover{background:#c7d2fe}
+.search-box{padding:7px 12px;border:1.5px solid #e0e0e0;border-radius:8px;
+  font-size:13px;width:220px}
+.search-box:focus{outline:none;border-color:#0f3460}
+.empty{text-align:center;padding:50px;color:#bbb;font-size:14px}
+
+/* ── Modal ── */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);
+  z-index:1000;align-items:center;justify-content:center}
+.overlay.open{display:flex}
+.modal{background:#fff;border-radius:16px;padding:28px;width:460px;max-width:95vw;
+  box-shadow:0 24px 64px rgba(0,0,0,.3)}
+.modal h3{font-size:17px;margin-bottom:18px;color:#1a1a2e}
+.modal-info{background:#f8f9fa;border-radius:9px;padding:12px 16px;
+  margin-bottom:18px;font-size:13px;line-height:1.8;color:#555}
+.modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
+
+/* ── Stats tab ── */
+.charts-grid{display:grid;grid-template-columns:2fr 1fr;gap:16px;padding:20px}
+.chart-box{background:#f8f9fa;border-radius:12px;padding:20px}
+.chart-box h3{font-size:14px;color:#555;margin-bottom:16px;font-weight:600}
+.revenue-cards{display:grid;gap:16px;padding:20px 20px 20px 0}
+.rev-card{background:#f8f9fa;border-radius:12px;padding:20px}
+.rev-card .rl{font-size:12px;color:#999;margin-bottom:6px}
+.rev-card .rv{font-size:26px;font-weight:700}
+
+/* ── Broadcast ── */
+.broadcast-wrap{padding:24px}
+.broadcast-wrap h2{font-size:15px;margin-bottom:6px;color:#1a1a2e}
+.broadcast-hint{font-size:13px;color:#999;margin-bottom:20px}
+.broadcast-wrap textarea{width:100%;padding:12px;border:1.5px solid #e0e0e0;
+  border-radius:9px;font-size:14px;font-family:inherit;resize:vertical}
+.broadcast-wrap textarea:focus{outline:none;border-color:#0f3460}
+.broadcast-meta{font-size:13px;color:#888;margin:12px 0}
+#broadcast-result{margin-top:12px;font-size:13px;font-weight:600;color:#059669}
+
+/* ── Admins tab ── */
+.admins-layout{display:grid;grid-template-columns:1fr 340px;gap:16px}
+.admin-row{display:flex;align-items:center;padding:12px 16px;
+  border-bottom:1px solid #fafafa;font-size:13px}
+.admin-row:last-child{border-bottom:none}
+.admin-name{font-weight:600;flex:1}
+.role-badge{font-size:11px;padding:2px 9px;border-radius:12px;margin-right:10px}
+.role-superadmin{background:#fef3c7;color:#d97706}
+.role-admin{background:#dbeafe;color:#2563eb}
+.tg-linked{font-size:11px;color:#10b981;margin-right:10px}
+</style>
 </head>
 <body>
 
-<!-- ── Login Page ── -->
+<!-- ═══════════════════════════════════════════ LOGIN ═══════════════════════════ -->
 <div id="login-page">
-    <div class="login-card">
-        <div class="logo">💈</div>
-        <h1>Admin Panel</h1>
-        <p class="subtitle">Elite Barbershop Management</p>
+  <div class="login-card">
+    <div class="login-logo">💈</div>
+    <div class="login-title">Admin Panel</div>
+    <div class="login-sub">Elite Barbershop Management</div>
 
-        <div class="form-group">
-            <label>Username</label>
-            <input type="text" id="login-username" placeholder="Enter username" autocomplete="username">
-        </div>
-        <div class="form-group">
-            <label>Password</label>
-            <input type="password" id="login-password" placeholder="Enter password" autocomplete="current-password">
-        </div>
+    <div id="tg-widget-wrap"></div>
+    <div class="divider" id="divider" style="display:none">or</div>
 
-        <button class="btn btn-primary" onclick="login()">Sign In</button>
-        <div class="error-msg" id="login-error"></div>
+    <div class="form-group">
+      <label>Username</label>
+      <input id="l-user" type="text" placeholder="admin" autocomplete="username">
     </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input id="l-pass" type="password" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="btn btn-primary" onclick="login()">Sign in</button>
+    <div class="error-msg" id="login-err"></div>
+  </div>
 </div>
 
-<!-- ── Dashboard ── -->
+<!-- ═══════════════════════════════════════════ DASHBOARD ══════════════════════ -->
 <div id="dashboard">
-    <header>
-        <div class="brand">💈 <span>Elite</span> Barbershop</div>
-        <div class="header-right">
-            <span class="admin-name" id="admin-label"></span>
-            <span class="datetime" id="datetime"></span>
-            <button class="btn-logout" onclick="logout()">Sign out</button>
-        </div>
-    </header>
+  <header>
+    <div class="brand">💈 <span>Elite</span> Barbershop</div>
+    <div class="header-right">
+      <span class="admin-badge" id="admin-label"></span>
+      <span style="color:#666;font-size:12px" id="clock"></span>
+      <button class="btn-logout" onclick="logout()">Sign out</button>
+    </div>
+  </header>
 
-    <!-- Stats -->
-    <div class="stats">
-        <div class="stat-card blue">
-            <div class="label">Total bookings</div>
-            <div class="value" id="stat-total">—</div>
+  <!-- Stats -->
+  <div class="stats">
+    <div class="stat-card c-blue">  <div class="label">Total bookings</div><div class="val" id="s-total">—</div></div>
+    <div class="stat-card c-yellow"><div class="label">Pending</div>       <div class="val" id="s-pending">—</div></div>
+    <div class="stat-card c-green"> <div class="label">Completed</div>     <div class="val" id="s-done">—</div></div>
+    <div class="stat-card c-red">   <div class="label">Cancelled</div>     <div class="val" id="s-cancelled">—</div></div>
+    <div class="stat-card c-purple"><div class="label">Clients</div>       <div class="val" id="s-users">—</div></div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab active"  onclick="switchTab('bookings',this)">📋 Bookings</div>
+    <div class="tab"         onclick="switchTab('stats',this)">📊 Statistics</div>
+    <div class="tab"         onclick="switchTab('broadcast',this)">📢 Broadcast</div>
+    <div class="tab" id="tab-admins-btn" style="display:none" onclick="switchTab('admins',this)">👤 Admins</div>
+  </div>
+
+  <div class="content">
+
+    <!-- ── BOOKINGS ── -->
+    <div class="tab-pane active" id="pane-bookings">
+      <div class="card">
+        <div class="card-header">
+          <h2>All bookings</h2>
+          <input class="search-box" placeholder="🔍 Search client…" oninput="filterBookings(this.value)">
         </div>
-        <div class="stat-card yellow">
-            <div class="label">Pending</div>
-            <div class="value" id="stat-pending">—</div>
-        </div>
-        <div class="stat-card green">
-            <div class="label">Completed</div>
-            <div class="value" id="stat-done">—</div>
-        </div>
-        <div class="stat-card red">
-            <div class="label">Cancelled</div>
-            <div class="value" id="stat-cancelled">—</div>
-        </div>
+        <table>
+          <thead><tr>
+            <th>#</th><th>Client</th><th>Service</th><th>Phone</th>
+            <th>Date & Time</th><th>Status</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="bookings-body"><tr><td colspan="7" class="empty">Loading…</td></tr></tbody>
+        </table>
+      </div>
     </div>
 
-    <!-- Tabs -->
-    <div class="tabs">
-        <div class="tab active" onclick="switchTab('bookings', this)">📋 Bookings</div>
-        <div class="tab" id="admins-tab" onclick="switchTab('admins', this)" style="display:none">👤 Admins</div>
-    </div>
-
-    <div class="content">
-
-        <!-- Bookings Tab -->
-        <div class="tab-content active" id="tab-bookings">
-            <div class="table-wrapper">
-                <div class="table-header">
-                    <h2>All bookings</h2>
-                    <input class="search-input" type="text" placeholder="🔍 Search client..." oninput="filterBookings(this.value)">
-                </div>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Client</th>
-                            <th>Service</th>
-                            <th>Phone</th>
-                            <th>Status</th>
-                            <th>Scheduled</th>
-                            <th>Booked</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="bookings-tbody">
-                        <tr><td colspan="8" class="empty-state">Loading...</td></tr>
-                    </tbody>
-                </table>
+    <!-- ── STATISTICS ── -->
+    <div class="tab-pane" id="pane-stats">
+      <div class="card" style="border-radius:0 12px 12px 12px">
+        <div class="charts-grid">
+          <div>
+            <div class="chart-box">
+              <h3>📈 Bookings per day (last 30 days)</h3>
+              <canvas id="chart-line" height="120"></canvas>
             </div>
-        </div>
-
-        <!-- Admins Tab -->
-        <div class="tab-content" id="tab-admins">
-            <div class="admins-grid">
-                <div class="admin-card">
-                    <div class="table-header">
-                        <h2>Admin accounts</h2>
-                    </div>
-                    <div id="admins-list"></div>
-                </div>
-                <div>
-                    <div class="tabs" style="padding:0; margin-bottom:-1px;">
-                        <div class="tab active" style="cursor:default">➕ Add admin</div>
-                    </div>
-                    <div class="add-admin-card">
-                        <div class="form-group">
-                            <label>Username</label>
-                            <input type="text" id="new-admin-username" placeholder="e.g. manager1">
-                        </div>
-                        <div class="form-group">
-                            <label>Password</label>
-                            <input type="password" id="new-admin-password" placeholder="Min 6 characters">
-                        </div>
-                        <div class="form-group">
-                            <label>Role</label>
-                            <select id="new-admin-role">
-                                <option value="admin">Admin (can view & edit bookings)</option>
-                                <option value="superadmin">Superadmin (full access)</option>
-                            </select>
-                        </div>
-                        <button class="btn btn-primary" onclick="addAdmin()">Add admin</button>
-                        <div class="error-msg" id="admin-error" style="display:none"></div>
-                    </div>
-                </div>
+            <div class="chart-box" style="margin-top:16px">
+              <h3>🥧 Bookings by service</h3>
+              <canvas id="chart-pie" height="160"></canvas>
             </div>
+          </div>
+          <div class="revenue-cards">
+            <div class="rev-card">
+              <div class="rl">💰 Total revenue (all bookings)</div>
+              <div class="rv c-green" id="rev-total">—</div>
+            </div>
+            <div class="rev-card">
+              <div class="rl">✅ Confirmed revenue (done)</div>
+              <div class="rv" style="color:#10b981" id="rev-done">—</div>
+            </div>
+            <div class="rev-card">
+              <div class="rl">👥 Total registered clients</div>
+              <div class="rv" style="color:#3b82f6" id="rev-users">—</div>
+            </div>
+          </div>
         </div>
-
+      </div>
     </div>
-</div>
 
-<!-- ── Edit Booking Modal ── -->
-<div class="modal-overlay" id="edit-modal">
-    <div class="modal">
-        <h3>✏️ Edit booking</h3>
-        <div class="modal-info" id="modal-info"></div>
-
-        <div class="form-group">
-            <label>Status</label>
-            <select id="modal-status" onchange="toggleDateField()">
-                <option value="pending">🟡 Pending</option>
-                <option value="done">✅ Completed</option>
-                <option value="rescheduled">📅 Rescheduled</option>
-                <option value="cancelled">❌ Cancelled</option>
-            </select>
+    <!-- ── BROADCAST ── -->
+    <div class="tab-pane" id="pane-broadcast">
+      <div class="card" style="border-radius:0 12px 12px 12px">
+        <div class="broadcast-wrap">
+          <h2>📢 Broadcast message</h2>
+          <p class="broadcast-hint">Send a message to ALL registered bot users at once. Supports *bold* and _italic_ Markdown.</p>
+          <div class="form-group">
+            <label>Message</label>
+            <textarea id="bc-msg" rows="6" placeholder="Type your message here…&#10;&#10;Example:&#10;🎉 *Special offer!* Get 20% off this Friday. Book now!"></textarea>
+          </div>
+          <div class="broadcast-meta">Will be sent to <strong id="bc-count">—</strong> users.</div>
+          <button class="btn btn-primary" style="width:auto;padding:10px 28px" onclick="sendBroadcast()">📤 Send to all</button>
+          <div id="broadcast-result"></div>
         </div>
-
-        <div class="form-group" id="date-field">
-            <label>New date & time</label>
-            <input type="datetime-local" id="modal-date">
-        </div>
-
-        <div class="form-group">
-            <label>Note for client (sent via Telegram)</label>
-            <textarea id="modal-notes" rows="3" placeholder="Optional note..."></textarea>
-        </div>
-
-        <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-            <button class="btn btn-primary" style="width:auto" onclick="saveBooking()">💾 Save & Notify</button>
-        </div>
+      </div>
     </div>
+
+    <!-- ── ADMINS ── -->
+    <div class="tab-pane" id="pane-admins">
+      <div class="admins-layout">
+        <div class="card" style="border-radius:0 12px 12px 12px">
+          <div class="card-header"><h2>Admin accounts</h2></div>
+          <div id="admins-list"><div class="empty">Loading…</div></div>
+        </div>
+        <div>
+          <div class="tabs" style="padding:0;margin-bottom:-1px">
+            <div class="tab active" style="cursor:default">➕ Add admin</div>
+          </div>
+          <div class="card" style="padding:20px">
+            <div class="form-group"><label>Username</label><input id="na-user" placeholder="e.g. manager1"></div>
+            <div class="form-group"><label>Password</label><input id="na-pass" type="password" placeholder="min 6 chars"></div>
+            <div class="form-group">
+              <label>Role</label>
+              <select id="na-role">
+                <option value="admin">Admin — view & edit bookings</option>
+                <option value="superadmin">Superadmin — full access</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" onclick="addAdmin()">Add admin</button>
+            <div class="error-msg" id="admin-err"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /dashboard -->
+
+<!-- ═══════════════════════════════════════════ EDIT MODAL ═════════════════════ -->
+<div class="overlay" id="edit-overlay">
+  <div class="modal">
+    <h3>✏️ Edit booking</h3>
+    <div class="modal-info" id="modal-info"></div>
+    <div class="form-group">
+      <label>Status</label>
+      <select id="m-status" onchange="toggleDateRow()">
+        <option value="pending">🟡 Pending</option>
+        <option value="done">✅ Completed</option>
+        <option value="rescheduled">📅 Rescheduled</option>
+        <option value="cancelled">❌ Cancelled</option>
+      </select>
+    </div>
+    <div class="form-group" id="m-date-row">
+      <label>New date & time</label>
+      <input type="datetime-local" id="m-date">
+    </div>
+    <div class="form-group">
+      <label>Note for client (sent via Telegram)</label>
+      <textarea id="m-notes" rows="3" placeholder="Optional…"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" style="width:auto" onclick="saveBooking()">💾 Save & Notify</button>
+    </div>
+  </div>
 </div>
 
 <script>
-    // ── Config ──────────────────────────────────────────────────────────────
-    const API_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-        ? 'https://web-production-a067.up.railway.app'
-        : window.location.origin;
+// ════════════════════════════════════════════════════
+//  Config
+// ════════════════════════════════════════════════════
+const API_URL = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+  ? 'https://web-production-a067.up.railway.app'
+  : location.origin;
 
-    let token = localStorage.getItem('token');
-    let currentRole = localStorage.getItem('role');
-    let currentAdmin = localStorage.getItem('admin');
-    let allBookings = [];
-    let editingBookingId = null;
+let token       = localStorage.getItem('token');
+let currentRole = localStorage.getItem('role');
+let currentUser = localStorage.getItem('admin');
+let allBookings = [];
+let editingId   = null;
+let lineChart   = null;
+let pieChart    = null;
 
-    // ── Init ────────────────────────────────────────────────────────────────
-    if (token) showDashboard();
+// ── Init ────────────────────────────────────────────
+if (token) showDashboard();
+else       loadConfig();
 
-    // Clock
-    setInterval(() => {
-        document.getElementById('datetime').textContent = new Date().toLocaleString('en-US');
-    }, 1000);
+setInterval(() => {
+  document.getElementById('clock').textContent = new Date().toLocaleString('en-US');
+}, 1000);
 
-    // ── Auth ────────────────────────────────────────────────────────────────
-    async function login() {
-        const username = document.getElementById('login-username').value.trim();
-        const password = document.getElementById('login-password').value;
-        const errorEl = document.getElementById('login-error');
-
-        if (!username || !password) {
-            showError(errorEl, 'Please enter username and password');
-            return;
-        }
-
-        try {
-            const res = await fetch(`${API_URL}/login`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
-            });
-
-            if (!res.ok) {
-                const err = await res.json();
-                showError(errorEl, err.detail || 'Login failed');
-                return;
-            }
-
-            const data = await res.json();
-            token = data.token;
-            currentRole = data.role;
-            currentAdmin = data.username;
-
-            localStorage.setItem('token', token);
-            localStorage.setItem('role', currentRole);
-            localStorage.setItem('admin', currentAdmin);
-
-            showDashboard();
-        } catch (e) {
-            showError(errorEl, 'Connection error. Is the server running?');
-        }
+// ── Load config (bot username for Telegram widget) ──
+async function loadConfig() {
+  try {
+    const cfg = await fetch(`${API_URL}/config`).then(r => r.json());
+    if (cfg.bot_username) {
+      document.getElementById('divider').style.display = '';
+      loadTelegramWidget(cfg.bot_username);
     }
+  } catch(e) {}
+}
 
-    function logout() {
-        localStorage.clear();
-        token = null;
-        document.getElementById('login-page').style.display = 'flex';
-        document.getElementById('dashboard').style.display = 'none';
-    }
+function loadTelegramWidget(username) {
+  const s = document.createElement('script');
+  s.async = true;
+  s.src = 'https://telegram.org/js/telegram-widget.js?22';
+  s.setAttribute('data-telegram-login', username);
+  s.setAttribute('data-size', 'large');
+  s.setAttribute('data-onauth', 'onTelegramAuth(user)');
+  s.setAttribute('data-request-access', 'write');
+  document.getElementById('tg-widget-wrap').appendChild(s);
+}
 
-    function showDashboard() {
-        document.getElementById('login-page').style.display = 'none';
-        document.getElementById('dashboard').style.display = 'block';
-        document.getElementById('admin-label').textContent = `👤 ${currentAdmin} (${currentRole})`;
+window.onTelegramAuth = async function(user) {
+  const res = await fetch(`${API_URL}/auth/telegram`, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(user)
+  });
+  if (res.ok) {
+    const d = await res.json();
+    saveSession(d);
+    showDashboard();
+  } else {
+    const e = await res.json();
+    showErr('login-err', e.detail || 'Telegram auth failed');
+  }
+};
 
-        if (currentRole === 'superadmin') {
-            document.getElementById('admins-tab').style.display = 'block';
-        }
-
-        loadBookings();
-        if (currentRole === 'superadmin') loadAdmins();
-        setInterval(loadBookings, 30000);
-    }
-
-    // ── API helpers ─────────────────────────────────────────────────────────
-    async function apiGet(path) {
-        const res = await fetch(`${API_URL}${path}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.status === 401) { logout(); return null; }
-        return res.json();
-    }
-
-    async function apiPut(path, body) {
-        const res = await fetch(`${API_URL}${path}`, {
-            method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(body)
-        });
-        if (res.status === 401) { logout(); return null; }
-        return res.json();
-    }
-
-    async function apiPost(path, body) {
-        const res = await fetch(`${API_URL}${path}`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(body)
-        });
-        if (res.status === 401) { logout(); return null; }
-        return res;
-    }
-
-    async function apiDelete(path) {
-        const res = await fetch(`${API_URL}${path}`, {
-            method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.status === 401) { logout(); return null; }
-        return res.json();
-    }
-
-    // ── Bookings ────────────────────────────────────────────────────────────
-    async function loadBookings() {
-        const data = await apiGet('/bookings');
-        if (!data) return;
-        allBookings = data;
-        renderBookings(data);
-        updateStats(data);
-    }
-
-    function updateStats(data) {
-        document.getElementById('stat-total').textContent = data.length;
-        document.getElementById('stat-pending').textContent   = data.filter(b => b.status === 'pending').length;
-        document.getElementById('stat-done').textContent      = data.filter(b => b.status === 'done').length;
-        document.getElementById('stat-cancelled').textContent = data.filter(b => b.status === 'cancelled').length;
-    }
-
-    function renderBookings(data) {
-        const tbody = document.getElementById('bookings-tbody');
-        if (data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="8" class="empty-state">No bookings yet</td></tr>';
-            return;
-        }
-
-        tbody.innerHTML = data.map(b => `
-            <tr>
-                <td style="color:#aaa">#${b.id}</td>
-                <td>
-                    <strong>${b.name}</strong><br>
-                    <span style="color:#aaa;font-size:12px">@${b.username || '—'}</span>
-                </td>
-                <td>${b.service}</td>
-                <td>${b.phone || '—'}</td>
-                <td><span class="badge badge-${b.status}">${b.status}</span></td>
-                <td style="color:#555">${b.scheduled_date || '—'}</td>
-                <td style="color:#aaa;font-size:12px">${(b.created_at || '').slice(0, 16)}</td>
-                <td><button class="btn-edit" onclick="openModal(${b.id})">✏️ Edit</button></td>
-            </tr>
-        `).join('');
-    }
-
-    function filterBookings(query) {
-        const q = query.toLowerCase();
-        const filtered = allBookings.filter(b =>
-            b.name.toLowerCase().includes(q) ||
-            (b.username || '').toLowerCase().includes(q) ||
-            b.service.toLowerCase().includes(q) ||
-            (b.phone || '').includes(q)
-        );
-        renderBookings(filtered);
-    }
-
-    // ── Edit Modal ──────────────────────────────────────────────────────────
-    function openModal(bookingId) {
-        const b = allBookings.find(x => x.id === bookingId);
-        if (!b) return;
-        editingBookingId = bookingId;
-
-        document.getElementById('modal-info').innerHTML =
-            `<strong>${b.service}</strong><br>` +
-            `👤 ${b.name} (@${b.username || '—'})<br>` +
-            `📱 ${b.phone || '—'}`;
-
-        document.getElementById('modal-status').value = b.status;
-        document.getElementById('modal-date').value = b.scheduled_date || '';
-        document.getElementById('modal-notes').value = b.notes || '';
-
-        toggleDateField();
-        document.getElementById('edit-modal').classList.add('open');
-    }
-
-    function closeModal() {
-        document.getElementById('edit-modal').classList.remove('open');
-        editingBookingId = null;
-    }
-
-    function toggleDateField() {
-        const status = document.getElementById('modal-status').value;
-        document.getElementById('date-field').style.display =
-            status === 'rescheduled' ? 'block' : 'none';
-    }
-
-    async function saveBooking() {
-        if (!editingBookingId) return;
-
-        const status = document.getElementById('modal-status').value;
-        const scheduled_date = document.getElementById('modal-date').value || null;
-        const notes = document.getElementById('modal-notes').value || null;
-
-        await apiPut(`/bookings/${editingBookingId}`, { status, scheduled_date, notes });
-        closeModal();
-        loadBookings();
-    }
-
-    // ── Admins ──────────────────────────────────────────────────────────────
-    async function loadAdmins() {
-        const data = await apiGet('/admins');
-        if (!data) return;
-
-        const list = document.getElementById('admins-list');
-        if (data.length === 0) {
-            list.innerHTML = '<div class="empty-state">No admins found</div>';
-            return;
-        }
-
-        list.innerHTML = data.map(a => `
-            <div class="admin-row">
-                <span class="admin-name">👤 ${a.username}</span>
-                <span class="admin-role role-${a.role}">${a.role}</span>
-                <span style="color:#aaa;font-size:12px;margin-right:12px">${(a.created_at || '').slice(0, 10)}</span>
-                ${a.role !== 'superadmin'
-                    ? `<button class="btn btn-danger btn-sm" onclick="removeAdmin(${a.id}, '${a.username}')">Remove</button>`
-                    : '<span style="color:#aaa;font-size:12px">protected</span>'
-                }
-            </div>
-        `).join('');
-    }
-
-    async function addAdmin() {
-        const username = document.getElementById('new-admin-username').value.trim();
-        const password = document.getElementById('new-admin-password').value;
-        const role     = document.getElementById('new-admin-role').value;
-        const errorEl  = document.getElementById('admin-error');
-
-        if (!username || !password) {
-            showError(errorEl, 'Fill in all fields');
-            return;
-        }
-        if (password.length < 6) {
-            showError(errorEl, 'Password must be at least 6 characters');
-            return;
-        }
-
-        const res = await apiPost('/admins', { username, password, role });
-        if (!res) return;
-
-        if (res.ok) {
-            document.getElementById('new-admin-username').value = '';
-            document.getElementById('new-admin-password').value = '';
-            errorEl.style.display = 'none';
-            loadAdmins();
-        } else {
-            const err = await res.json();
-            showError(errorEl, err.detail || 'Error creating admin');
-        }
-    }
-
-    async function removeAdmin(id, username) {
-        if (!confirm(`Remove admin "${username}"?`)) return;
-        await apiDelete(`/admins/${id}`);
-        loadAdmins();
-    }
-
-    // ── Tabs ────────────────────────────────────────────────────────────────
-    function switchTab(name, el) {
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-        el.classList.add('active');
-        document.getElementById(`tab-${name}`).classList.add('active');
-    }
-
-    // ── Utils ────────────────────────────────────────────────────────────────
-    function showError(el, msg) {
-        el.textContent = msg;
-        el.style.display = 'block';
-        setTimeout(() => el.style.display = 'none', 4000);
-    }
-
-    // Enter key on login
-    document.addEventListener('keydown', e => {
-        if (e.key === 'Enter' && document.getElementById('login-page').style.display !== 'none') {
-            login();
-        }
+// ── Auth ────────────────────────────────────────────
+async function login() {
+  const username = document.getElementById('l-user').value.trim();
+  const password = document.getElementById('l-pass').value;
+  if (!username || !password) { showErr('login-err','Fill in all fields'); return; }
+  try {
+    const res = await fetch(`${API_URL}/login`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({username, password})
     });
+    if (!res.ok) { showErr('login-err', (await res.json()).detail); return; }
+    saveSession(await res.json());
+    showDashboard();
+  } catch(e) { showErr('login-err','Connection error'); }
+}
 
-    // Close modal on overlay click
-    document.getElementById('edit-modal').addEventListener('click', e => {
-        if (e.target === e.currentTarget) closeModal();
-    });
+function saveSession(data) {
+  token = data.token; currentRole = data.role; currentUser = data.username;
+  localStorage.setItem('token', token);
+  localStorage.setItem('role',  currentRole);
+  localStorage.setItem('admin', currentUser);
+}
+
+function logout() {
+  localStorage.clear(); token = null;
+  document.getElementById('login-page').style.display = 'flex';
+  document.getElementById('dashboard').style.display  = 'none';
+}
+
+function showDashboard() {
+  document.getElementById('login-page').style.display = 'none';
+  document.getElementById('dashboard').style.display  = 'block';
+  document.getElementById('admin-label').textContent  = `${currentUser} (${currentRole})`;
+  if (currentRole === 'superadmin') document.getElementById('tab-admins-btn').style.display = '';
+  loadBookings();
+  loadStats();
+  if (currentRole === 'superadmin') loadAdmins();
+  setInterval(loadBookings, 30000);
+}
+
+// ── API helpers ─────────────────────────────────────
+const hdrs = () => ({'Authorization':`Bearer ${token}`,'Content-Type':'application/json'});
+
+async function apiGet(path) {
+  const r = await fetch(`${API_URL}${path}`, {headers: hdrs()});
+  if (r.status === 401) { logout(); return null; }
+  return r.json();
+}
+async function apiPut(path, body) {
+  const r = await fetch(`${API_URL}${path}`,
+    {method:'PUT', headers:hdrs(), body:JSON.stringify(body)});
+  if (r.status === 401) { logout(); return null; }
+  return r.json();
+}
+async function apiPost(path, body) {
+  const r = await fetch(`${API_URL}${path}`,
+    {method:'POST', headers:hdrs(), body:JSON.stringify(body)});
+  if (r.status === 401) { logout(); return null; }
+  return r;
+}
+async function apiDel(path) {
+  const r = await fetch(`${API_URL}${path}`, {method:'DELETE', headers:hdrs()});
+  if (r.status === 401) { logout(); return null; }
+  return r.json();
+}
+
+// ── Bookings ────────────────────────────────────────
+async function loadBookings() {
+  const data = await apiGet('/bookings'); if (!data) return;
+  allBookings = data; renderBookings(data); updateStats(data);
+  document.getElementById('bc-count').textContent = [...new Set(data.map(b => b.username))].length || '—';
+}
+
+function updateStats(data) {
+  document.getElementById('s-total').textContent    = data.length;
+  document.getElementById('s-pending').textContent  = data.filter(b=>b.status==='pending').length;
+  document.getElementById('s-done').textContent     = data.filter(b=>b.status==='done').length;
+  document.getElementById('s-cancelled').textContent= data.filter(b=>b.status==='cancelled').length;
+}
+
+function renderBookings(data) {
+  const tb = document.getElementById('bookings-body');
+  if (!data.length) { tb.innerHTML='<tr><td colspan="7" class="empty">No bookings yet</td></tr>'; return; }
+  tb.innerHTML = data.map(b => `
+    <tr>
+      <td style="color:#ccc">#${b.id}</td>
+      <td><strong>${b.name}</strong><br><span style="color:#aaa;font-size:11px">@${b.username||'—'}</span></td>
+      <td style="font-size:12px">${b.service}</td>
+      <td style="font-size:12px">${b.phone||'—'}</td>
+      <td style="font-size:12px">${b.booking_date ? b.booking_date+' '+b.booking_time : '—'}</td>
+      <td><span class="badge badge-${b.status}">${b.status}</span></td>
+      <td><button class="btn-edit" onclick="openModal(${b.id})">✏️ Edit</button></td>
+    </tr>`).join('');
+}
+
+function filterBookings(q) {
+  q = q.toLowerCase();
+  renderBookings(allBookings.filter(b =>
+    b.name.toLowerCase().includes(q) ||
+    (b.username||'').toLowerCase().includes(q) ||
+    b.service.toLowerCase().includes(q) ||
+    (b.phone||'').includes(q)
+  ));
+}
+
+// ── Edit modal ──────────────────────────────────────
+function openModal(id) {
+  const b = allBookings.find(x => x.id === id); if (!b) return;
+  editingId = id;
+  document.getElementById('modal-info').innerHTML =
+    `<strong>${b.service}</strong><br>👤 ${b.name} (@${b.username||'—'})<br>📱 ${b.phone||'—'}`+
+    (b.booking_date ? `<br>📅 ${b.booking_date} ${b.booking_time}` : '');
+  document.getElementById('m-status').value = b.status;
+  document.getElementById('m-date').value   = b.scheduled_date || '';
+  document.getElementById('m-notes').value  = b.notes || '';
+  toggleDateRow();
+  document.getElementById('edit-overlay').classList.add('open');
+}
+function closeModal() { document.getElementById('edit-overlay').classList.remove('open'); editingId=null; }
+function toggleDateRow() {
+  document.getElementById('m-date-row').style.display =
+    document.getElementById('m-status').value === 'rescheduled' ? '' : 'none';
+}
+async function saveBooking() {
+  if (!editingId) return;
+  await apiPut(`/bookings/${editingId}`, {
+    status:         document.getElementById('m-status').value,
+    scheduled_date: document.getElementById('m-date').value   || null,
+    notes:          document.getElementById('m-notes').value  || null,
+  });
+  closeModal(); loadBookings();
+}
+
+// ── Statistics ──────────────────────────────────────
+async function loadStats() {
+  const d = await apiGet('/stats'); if (!d) return;
+
+  document.getElementById('s-users').textContent  = d.users_count;
+  document.getElementById('rev-users').textContent = d.users_count;
+  document.getElementById('rev-total').textContent = '$' + d.total_revenue.toFixed(0);
+  document.getElementById('rev-done').textContent  = '$' + d.done_revenue.toFixed(0);
+
+  // Line chart
+  const days   = d.by_day.map(r => r.day.slice(5));  // MM-DD
+  const counts = d.by_day.map(r => r.count);
+  if (lineChart) lineChart.destroy();
+  lineChart = new Chart(document.getElementById('chart-line'), {
+    type: 'line',
+    data: {
+      labels:   days,
+      datasets: [{
+        label: 'Bookings',
+        data:  counts,
+        borderColor:     '#0f3460',
+        backgroundColor: 'rgba(15,52,96,.1)',
+        fill: true, tension: 0.3, pointRadius: 3,
+      }]
+    },
+    options: { plugins:{ legend:{display:false} }, scales:{ y:{beginAtZero:true} } }
+  });
+
+  // Pie chart
+  const svcs   = d.by_service.map(r => r.service.replace(/\$\d+/, '').trim());
+  const svcCnt = d.by_service.map(r => r.count);
+  const COLORS = ['#0f3460','#e94560','#3b82f6','#10b981','#f59e0b','#8b5cf6','#ef4444','#14b8a6'];
+  if (pieChart) pieChart.destroy();
+  pieChart = new Chart(document.getElementById('chart-pie'), {
+    type: 'doughnut',
+    data: {
+      labels:   svcs,
+      datasets: [{ data: svcCnt, backgroundColor: COLORS }]
+    },
+    options: { plugins:{ legend:{ position:'right', labels:{ font:{size:11} } } } }
+  });
+}
+
+// ── Broadcast ────────────────────────────────────────
+async function sendBroadcast() {
+  const msg = document.getElementById('bc-msg').value.trim();
+  if (!msg) { alert('Please type a message'); return; }
+  if (!confirm('Send this message to all users?')) return;
+
+  const res = await apiPost('/broadcast', {message: msg});
+  if (res && res.ok) {
+    const d = await res.json();
+    document.getElementById('broadcast-result').textContent =
+      `✅ Sent: ${d.sent} | Failed: ${d.failed} | Total: ${d.total}`;
+  } else {
+    document.getElementById('broadcast-result').textContent = '❌ Error sending broadcast';
+    document.getElementById('broadcast-result').style.color = '#dc2626';
+  }
+}
+
+// ── Admins ───────────────────────────────────────────
+async function loadAdmins() {
+  const data = await apiGet('/admins'); if (!data) return;
+  const list = document.getElementById('admins-list');
+  if (!data.length) { list.innerHTML = '<div class="empty">No admins</div>'; return; }
+  list.innerHTML = data.map(a => `
+    <div class="admin-row">
+      <span class="admin-name">👤 ${a.username}</span>
+      ${a.telegram_id ? `<span class="tg-linked">✈️ TG linked</span>` : ''}
+      <span class="role-badge role-${a.role}">${a.role}</span>
+      ${a.role !== 'superadmin'
+        ? `<button class="btn btn-danger btn-sm" onclick="removeAdmin(${a.id},'${a.username}')">Remove</button>`
+        : '<span style="color:#ccc;font-size:11px">protected</span>'}
+    </div>`).join('');
+}
+
+async function addAdmin() {
+  const u = document.getElementById('na-user').value.trim();
+  const p = document.getElementById('na-pass').value;
+  const r = document.getElementById('na-role').value;
+  if (!u || !p) { showErr('admin-err','Fill in all fields'); return; }
+  if (p.length < 6) { showErr('admin-err','Password min 6 chars'); return; }
+  const res = await apiPost('/admins', {username:u, password:p, role:r});
+  if (res && res.ok) {
+    document.getElementById('na-user').value = '';
+    document.getElementById('na-pass').value = '';
+    loadAdmins();
+  } else {
+    const e = await res.json();
+    showErr('admin-err', e.detail || 'Error');
+  }
+}
+
+async function removeAdmin(id, name) {
+  if (!confirm(`Remove "${name}"?`)) return;
+  await apiDel(`/admins/${id}`); loadAdmins();
+}
+
+// ── Tabs ─────────────────────────────────────────────
+function switchTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById(`pane-${name}`).classList.add('active');
+  if (name === 'stats') loadStats();
+}
+
+// ── Utils ─────────────────────────────────────────────
+function showErr(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg; el.style.display = 'block';
+  setTimeout(() => el.style.display='none', 4000);
+}
+document.addEventListener('keydown', e => {
+  if (e.key==='Enter' && document.getElementById('login-page').style.display!=='none') login();
+});
+document.getElementById('edit-overlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeModal();
+});
 </script>
-
 </body>
 </html>
