@@ -4,6 +4,7 @@ from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command
 from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from dotenv import load_dotenv
+from database.db import init_db, add_user, add_booking, get_all_bookings
 
 # Load token from .env file
 load_dotenv()
@@ -13,7 +14,7 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
-# Reply keyboard (buttons under input field)
+# Reply keyboard
 main_menu = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text="📋 Our services"), KeyboardButton(text="📞 Contacts")],
@@ -22,7 +23,7 @@ main_menu = ReplyKeyboardMarkup(
     resize_keyboard=True
 )
 
-# Inline keyboard (buttons under message)
+# Inline keyboard
 services_menu = InlineKeyboardMarkup(
     inline_keyboard=[
         [InlineKeyboardButton(text="💇 Haircut — $20", callback_data="service_haircut")],
@@ -31,9 +32,14 @@ services_menu = InlineKeyboardMarkup(
     ]
 )
 
-# /start command
+# /start command — saves user to database
 @dp.message(Command("start"))
 async def cmd_start(message: Message):
+    await add_user(
+        telegram_id=message.from_user.id,
+        first_name=message.from_user.first_name,
+        username=message.from_user.username or ""
+    )
     await message.answer(
         f"Hello, {message.from_user.first_name}! 👋\nWelcome to our barbershop bot!",
         reply_markup=main_menu
@@ -63,20 +69,35 @@ async def show_location(message: Message):
 @dp.callback_query(F.data == "service_haircut")
 async def haircut_callback(callback: CallbackQuery):
     await callback.answer()
-    await callback.message.answer("You selected: Haircut — $20 ✂️")
+    await add_booking(user_id=callback.from_user.id, service="Haircut — $20")
+    await callback.message.answer("✅ Haircut booked! We will contact you soon.")
 
 @dp.callback_query(F.data == "service_beard")
 async def beard_callback(callback: CallbackQuery):
     await callback.answer()
-    await callback.message.answer("You selected: Beard trim — $15 🧔")
+    await add_booking(user_id=callback.from_user.id, service="Beard trim — $15")
+    await callback.message.answer("✅ Beard trim booked! We will contact you soon.")
 
 @dp.callback_query(F.data == "service_book")
 async def book_callback(callback: CallbackQuery):
     await callback.answer()
     await callback.message.answer("To book, please call: +1 234 567 89 📞")
 
+# /bookings command — show all bookings
+@dp.message(Command("bookings"))
+async def show_bookings(message: Message):
+    bookings = await get_all_bookings()
+    if not bookings:
+        await message.answer("No bookings yet.")
+        return
+    text = "📋 All bookings:\n\n"
+    for b in bookings:
+        text += f"👤 {b[0]} (@{b[1]})\n💇 {b[2]}\n📌 Status: {b[3]}\n🕐 {b[4]}\n\n"
+    await message.answer(text)
+
 # Start bot
 async def main():
+    await init_db()
     print("Bot is running...")
     await dp.start_polling(bot)
 
