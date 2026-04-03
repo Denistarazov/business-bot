@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import os
 import re
+from contextlib import asynccontextmanager
 from typing import Optional
 
 import jwt
@@ -27,11 +28,16 @@ BOT_TOKEN    = os.getenv("BOT_TOKEN",    "")
 BOT_USERNAME = os.getenv("BOT_USERNAME", "")
 ALGORITHM    = "HS256"
 
-# Import bot directly to avoid set_bot timing issues
+# Import bot directly
 try:
-    from bot.main import bot as _bot
+    from bot.main import bot as _bot, dp
+    from bot.scheduler import setup_scheduler
+    BOT_AVAILABLE = True
 except Exception:
     _bot = None
+    dp = None
+    setup_scheduler = None
+    BOT_AVAILABLE = False
 
 
 def set_bot(bot):
@@ -39,8 +45,62 @@ def set_bot(bot):
     _bot = bot
 
 
+# Global task for bot
+_bot_task = None
+
+
+async def _run_bot():
+    """Run the Telegram bot polling."""
+    try:
+        print("🤖 Bot started. Listening for messages...")
+        await dp.start_polling(_bot)
+    except asyncio.CancelledError:
+        print("⏹️  Bot polling stopped")
+    except Exception as e:
+        print(f"❌ Bot error: {e}")
+
+
+@asynccontextmanager
+async def lifespan(fastapi_app):
+    """Startup and shutdown for FastAPI with bot polling."""
+    global _bot_task
+
+    # Startup
+    print("=" * 70)
+    print("🚀 STARTING BUSINESS BOT + WEB SERVER")
+    print("=" * 70)
+    print("📦 Connecting to database...")
+    await database.connect()
+    await init_db()
+    print("✅ Database connected and initialized")
+
+    if BOT_AVAILABLE and _bot and dp:
+        set_bot(_bot)
+        setup_scheduler(_bot)
+        print("✅ Bot configured and scheduler started")
+        # Start bot as background task
+        _bot_task = asyncio.create_task(_run_bot())
+        print("🎯 Both services running")
+    else:
+        print("⚠️  Bot not available (will run web server only)")
+    print("=" * 70)
+
+    yield
+
+    # Shutdown
+    print("\n⏹️  Shutting down...")
+    if _bot_task:
+        _bot_task.cancel()
+        try:
+            await _bot_task
+        except asyncio.CancelledError:
+            pass
+    await database.disconnect()
+    print("✅ Cleanup complete")
+
+
 # ── App ───────────────────────────────────────────────────────────────────────
-app = FastAPI(title="Business Bot API", version="3.0.0")
+app = FastAPI(title="Business Bot API", version="3.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -105,15 +165,6 @@ class TelegramAuthRequest(BaseModel):
     photo_url: Optional[str] = None
     auth_date: int
     hash: str
-
-
-# ── Startup / shutdown ────────────────────────────────────────────────────────
-@app.on_event("shutdown")
-async def shutdown():
-    try:
-        await database.disconnect()
-    except Exception:
-        pass
 
 
 # ── Public ────────────────────────────────────────────────────────────────────
