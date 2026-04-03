@@ -7,7 +7,7 @@ load_dotenv()
 
 from bot.main import dp, bot
 from database.db import init_db
-from web.server import app
+from web.server import app, set_bot
 
 
 async def run_bot():
@@ -24,6 +24,7 @@ async def run_web():
 
 async def main():
     await init_db()
+    set_bot(bot)  # Give web server access to bot for notifications
     await asyncio.gather(run_bot(), run_web())
 
 
