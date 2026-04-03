@@ -177,7 +177,7 @@
     // Load bookings from API
     async function loadBookings() {
         try {
-            const response = await fetch('http://127.0.0.1:8000/bookings');
+            const response = await fetch('https://web-production-a067.up.railway.app/bookings');
             const data = await response.json();
 
             // Update stats
