@@ -27,7 +27,11 @@ BOT_TOKEN    = os.getenv("BOT_TOKEN",    "")
 BOT_USERNAME = os.getenv("BOT_USERNAME", "")
 ALGORITHM    = "HS256"
 
-_bot = None
+# Import bot directly to avoid set_bot timing issues
+try:
+    from bot.main import bot as _bot
+except Exception:
+    _bot = None
 
 
 def set_bot(bot):
@@ -104,15 +108,12 @@ class TelegramAuthRequest(BaseModel):
 
 
 # ── Startup / shutdown ────────────────────────────────────────────────────────
-@app.on_event("startup")
-async def startup():
-    await database.connect()
-    await init_db()
-
-
 @app.on_event("shutdown")
 async def shutdown():
-    await database.disconnect()
+    try:
+        await database.disconnect()
+    except Exception:
+        pass
 
 
 # ── Public ────────────────────────────────────────────────────────────────────
