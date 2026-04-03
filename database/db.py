@@ -161,7 +161,7 @@ async def add_booking(
 async def get_all_bookings() -> list:
     return await database.fetch_all("""
         SELECT b.id, u.first_name, u.username, b.service,
-               COALESCE(b.phone, '') AS phone,
+               '' AS phone,
                b.status, b.booking_date, b.booking_time,
                b.scheduled_date, b.notes, b.created_at
         FROM bookings b
@@ -173,7 +173,7 @@ async def get_all_bookings() -> list:
 async def get_user_bookings(telegram_id: int) -> list:
     return await database.fetch_all(
         """SELECT b.id, u.first_name, u.username, b.service,
-                  COALESCE(b.phone, '') AS phone,
+                  '' AS phone,
                   b.status, b.booking_date, b.booking_time,
                   b.scheduled_date, b.notes, b.created_at
            FROM bookings b
