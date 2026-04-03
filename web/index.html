@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Business Bot — Admin Panel</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #f0f2f5;
+            color: #333;
+        }
+
+        header {
+            background: #2c3e50;
+            color: white;
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        header h1 {
+            font-size: 22px;
+        }
+
+        header span {
+            font-size: 14px;
+            opacity: 0.7;
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            padding: 30px 40px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px 30px;
+            flex: 1;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .stat-card h3 {
+            font-size: 14px;
+            color: #888;
+            margin-bottom: 8px;
+        }
+
+        .stat-card p {
+            font-size: 32px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .bookings {
+            padding: 0 40px 40px;
+        }
+
+        .bookings h2 {
+            margin-bottom: 16px;
+            font-size: 18px;
+        }
+
+        table {
+            width: 100%;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            border-collapse: collapse;
+            overflow: hidden;
+        }
+
+        th {
+            background: #2c3e50;
+            color: white;
+            padding: 14px 20px;
+            text-align: left;
+            font-size: 14px;
+        }
+
+        td {
+            padding: 14px 20px;
+            border-bottom: 1px solid #f0f2f5;
+            font-size: 14px;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background: #f8f9fa;
+        }
+
+        .status {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .status.pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status.done {
+            background: #d1e7dd;
+            color: #0f5132;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #888;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>💈 Barbershop Admin Panel</h1>
+    <span id="datetime"></span>
+</header>
+
+<div class="stats">
+    <div class="stat-card">
+        <h3>Total bookings</h3>
+        <p id="total">—</p>
+    </div>
+    <div class="stat-card">
+        <h3>Pending</h3>
+        <p id="pending">—</p>
+    </div>
+    <div class="stat-card">
+        <h3>Completed</h3>
+        <p id="done">—</p>
+    </div>
+</div>
+
+<div class="bookings">
+    <h2>📋 All bookings</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Client</th>
+                <th>Username</th>
+                <th>Service</th>
+                <th>Status</th>
+                <th>Date</th>
+            </tr>
+        </thead>
+        <tbody id="bookings-list">
+            <tr><td colspan="5" class="loading">Loading...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+    // Show current date and time
+    function updateTime() {
+        const now = new Date();
+        document.getElementById('datetime').textContent = now.toLocaleString('en-US');
+    }
+    updateTime();
+    setInterval(updateTime, 1000);
+
+    // Load bookings from API
+    async function loadBookings() {
+        try {
+            const response = await fetch('http://127.0.0.1:8000/bookings');
+            const data = await response.json();
+
+            // Update stats
+            document.getElementById('total').textContent = data.length;
+            document.getElementById('pending').textContent = data.filter(b => b.status === 'pending').length;
+            document.getElementById('done').textContent = data.filter(b => b.status === 'done').length;
+
+            // Fill table
+            const tbody = document.getElementById('bookings-list');
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="loading">No bookings yet</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = data.map(b => `
+                <tr>
+                    <td>${b.name}</td>
+                    <td>@${b.username}</td>
+                    <td>${b.service}</td>
+                    <td><span class="status ${b.status}">${b.status}</span></td>
+                    <td>${b.created_at}</td>
+                </tr>
+            `).join('');
+
+        } catch (error) {
+            document.getElementById('bookings-list').innerHTML = 
+                '<tr><td colspan="5" class="loading">Error loading data. Is the server running?</td></tr>';
+        }
+    }
+
+    loadBookings();
+    // Refresh every 30 seconds
+    setInterval(loadBookings, 30000);
+</script>
+
+</body>
+</html>
