@@ -78,8 +78,22 @@ async def init_db():
         )
     """)
 
-    # Migrations — add columns silently if they don't exist
-    ifne = "IF NOT EXISTS" if IS_POSTGRES else ""
+    # Migrations — add columns safely
+    async def column_exists(table: str, col: str) -> bool:
+        if IS_POSTGRES:
+            result = await database.fetch_val(
+                """SELECT EXISTS(
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = :t AND column_name = :c
+                )""",
+                {"t": table, "c": col}
+            )
+            return bool(result)
+        else:
+            # SQLite: use PRAGMA table_info
+            rows = await database.fetch_all(f"PRAGMA table_info({table})")
+            return any(r["name"] == col for r in rows)
+
     for col, definition in [
         ("booking_date",   "TEXT"),
         ("booking_time",   "TEXT"),
@@ -90,12 +104,14 @@ async def init_db():
         (f"telegram_id",   f"{'BIGINT' if IS_POSTGRES else 'INTEGER'}"),
     ]:
         for table in (["bookings"] if col != "telegram_id" else ["admins"]):
-            try:
-                await database.execute(
-                    f"ALTER TABLE {table} ADD COLUMN {ifne} {col} {definition}"
-                )
-            except Exception:
-                pass
+            if not await column_exists(table, col):
+                try:
+                    await database.execute(
+                        f"ALTER TABLE {table} ADD COLUMN {col} {definition}"
+                    )
+                except Exception as e:
+                    print(f"⚠️  Failed to add {col} to {table}: {e}")
+
 
     # Default superadmin
     count = await database.fetch_val("SELECT COUNT(*) FROM admins")
