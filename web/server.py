@@ -9,7 +9,9 @@ from typing import Optional
 import jwt
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from database.db import (
@@ -116,6 +118,9 @@ async def shutdown():
 # ── Public ────────────────────────────────────────────────────────────────────
 @app.get("/")
 async def root():
+    index = os.path.join(os.path.dirname(__file__), "index.html")
+    if os.path.exists(index):
+        return FileResponse(index)
     return {"status": "ok", "version": "3.0.0"}
 
 
