@@ -3,12 +3,15 @@ Database module — supports SQLite (local) and PostgreSQL (production).
 Uses the 'databases' library for async queries.
 """
 import databases
+import bcrypt
 import hashlib
 import os
 import datetime
 
 # ── Connection URL ────────────────────────────────────────────────────────────
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///database/bot.db")
+DEFAULT_ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
+DEFAULT_ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
 
 # Fix Railway postgres:// URL
 if DATABASE_URL.startswith("postgres://"):
@@ -26,11 +29,15 @@ WORKING_HOURS = [f"{h:02d}:00" for h in range(9, 20)]  # 9:00 – 19:00
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 def hash_password(password: str) -> str:
-    return hashlib.sha256(password.encode()).hexdigest()
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
 
 def verify_password(password: str, hashed: str) -> bool:
-    return hash_password(password) == hashed
+    if not hashed:
+        return False
+    if hashed.startswith("$2"):
+        return bcrypt.checkpw(password.encode(), hashed.encode())
+    return hashlib.sha256(password.encode()).hexdigest() == hashed
 
 
 # ── Init & migrations ─────────────────────────────────────────────────────────
@@ -118,9 +125,9 @@ async def init_db():
     if not count:
         await database.execute(
             "INSERT INTO admins (username, password_hash, role) VALUES (:u, :p, :r)",
-            {"u": "admin", "p": hash_password("admin123"), "r": "superadmin"},
+            {"u": DEFAULT_ADMIN_USERNAME, "p": hash_password(DEFAULT_ADMIN_PASSWORD), "r": "superadmin"},
         )
-        print("✅ Default admin created — login: admin / password: admin123")
+        print(f"✅ Default admin created — login: {DEFAULT_ADMIN_USERNAME}")
 
 
 # ── Users ─────────────────────────────────────────────────────────────────────
@@ -161,7 +168,7 @@ async def add_booking(
 async def get_all_bookings() -> list:
     return await database.fetch_all("""
         SELECT b.id, u.first_name, u.username, b.service,
-               '' AS phone,
+               b.phone,
                b.status, b.booking_date, b.booking_time,
                b.scheduled_date, b.notes, b.created_at
         FROM bookings b
@@ -173,7 +180,7 @@ async def get_all_bookings() -> list:
 async def get_user_bookings(telegram_id: int) -> list:
     return await database.fetch_all(
         """SELECT b.id, u.first_name, u.username, b.service,
-                  '' AS phone,
+                  b.phone,
                   b.status, b.booking_date, b.booking_time,
                   b.scheduled_date, b.notes, b.created_at
            FROM bookings b

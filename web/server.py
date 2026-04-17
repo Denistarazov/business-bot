@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import hashlib
 import hmac
+import logging
 import os
 import re
 from contextlib import asynccontextmanager
@@ -23,10 +24,32 @@ from database.db import (
 )
 
 # ── Config ────────────────────────────────────────────────────────────────────
-SECRET_KEY   = os.getenv("SECRET_KEY",   "change-this-secret-in-production")
-BOT_TOKEN    = os.getenv("BOT_TOKEN",    "")
+SECRET_KEY = os.getenv("SECRET_KEY", "change-this-secret-in-production")
+BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 BOT_USERNAME = os.getenv("BOT_USERNAME", "")
-ALGORITHM    = "HS256"
+ALGORITHM = "HS256"
+ACCESS_TOKEN_HOURS = int(os.getenv("ACCESS_TOKEN_HOURS", "24"))
+RUN_BOT = os.getenv("RUN_BOT", "true").lower() not in {"0", "false", "no"}
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*")
+DEFAULT_ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
+DEFAULT_ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
+
+logger = logging.getLogger(__name__)
+
+
+def get_cors_origins() -> list[str]:
+    if CORS_ORIGINS.strip() == "*":
+        return ["*"]
+    return [origin.strip() for origin in CORS_ORIGINS.split(",") if origin.strip()]
+
+
+def warn_insecure_defaults() -> None:
+    if SECRET_KEY == "change-this-secret-in-production":
+        logger.warning("SECRET_KEY is still using the default value")
+    if DEFAULT_ADMIN_PASSWORD == "admin123":
+        logger.warning("ADMIN_PASSWORD is still using the default value")
+    if CORS_ORIGINS.strip() == "*":
+        logger.warning("CORS_ORIGINS allows all origins; restrict it in production")
 
 # Import bot directly
 try:
@@ -72,9 +95,10 @@ async def lifespan(fastapi_app):
     print("📦 Connecting to database...")
     await database.connect()
     await init_db()
+    warn_insecure_defaults()
     print("✅ Database connected and initialized")
 
-    if BOT_AVAILABLE and _bot and dp:
+    if RUN_BOT and BOT_AVAILABLE and _bot and dp:
         set_bot(_bot)
         setup_scheduler(_bot)
         print("✅ Bot configured and scheduler started")
@@ -104,7 +128,7 @@ app = FastAPI(title="Business Bot API", version="3.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=get_cors_origins(),
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -116,7 +140,7 @@ security = HTTPBearer()
 def create_token(username: str, role: str) -> str:
     return jwt.encode(
         {"sub": username, "role": role,
-         "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=24)},
+         "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=ACCESS_TOKEN_HOURS)},
         SECRET_KEY, algorithm=ALGORITHM,
     )
 
